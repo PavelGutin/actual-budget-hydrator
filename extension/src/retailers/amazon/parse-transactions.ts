@@ -1,4 +1,5 @@
 import { parseCurrency } from "./parse-currency";
+import { parseFuzzyDate } from "./parse-fuzzy-date";
 import { parseOrderNumber } from "./parse-order-number";
 
 /**
@@ -41,15 +42,8 @@ export interface ParsedTransactionsPage {
 	nextPageData: NextPageCursor | null;
 }
 
-/** US-only date parsing is enough for the spike; amazon-orders' dateutil-based parser handles far more. */
-function parseFormattedDate(value: string | undefined): string | null {
-	if (!value) return null;
-	const parsed = new Date(value);
-	return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
-}
-
 function parseOneTransaction(raw: RawTransaction): ParsedTransaction | null {
-	const completedDate = parseFormattedDate(raw.formattedDate);
+	const completedDate = parseFuzzyDate(raw.formattedDate);
 	const grandTotal = raw.formattedAmount ? parseCurrency(raw.formattedAmount) : null;
 	if (completedDate === null || grandTotal === null) return null;
 

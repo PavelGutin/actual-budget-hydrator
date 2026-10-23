@@ -25,6 +25,17 @@ export const FIELD_ITEM_PRICE_SELECTOR = [
 	"div.a-section.a-text-right span.a-size-small",
 ];
 
+export const ORDER_HISTORY_ENTITY_SELECTOR = ["div.order-card", "div.order"];
+
+export const FIELD_ORDER_DETAILS_LINK_SELECTOR = ["a.yohtmlc-order-details-link"];
+
+export const FIELD_ORDER_PLACED_DATE_SELECTOR = [
+	"[data-component='orderDate']",
+	"span.order-date-invoice-item",
+	"[data-component='briefOrderInfo'] div.a-column",
+	"div:is(.a-span3, .a-span12)",
+];
+
 export const FIELD_ORDER_NUMBER_SELECTOR = [
 	"[data-component='orderId']",
 	"[data-component='briefOrderInfo'] div.a-column",

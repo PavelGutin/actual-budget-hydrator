@@ -12,5 +12,10 @@ Two tools, same goal, different tradeoffs:
   through its own in-page API, with a review step before anything is applied. Targets Firefox
   first; Chrome support is a nice-to-have.
 
-The extension's retailer-parsing logic is being built and proven against real (anonymized) HTML
-fixtures before it ever touches live Amazon -- see `extension/tests/fixtures/amazon-orders/`.
+The extension's retailer-parsing and matching/splitting logic is being built and proven against
+real (anonymized) HTML fixtures and unit tests before it ever touches live Amazon -- see
+`extension/tests/`. Ported so far: order-detail parsing, transaction-history parsing (modern
+Next.js page shape), order-history parsing, order/transaction matching (`src/matching/`), and
+proportional item-split computation (`src/splitting/`) -- the full decision logic of the Python
+CLI, minus the network/session layer that actually talks to Amazon. That's the next, and first
+live-Amazon-touching, piece.
