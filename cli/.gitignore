@@ -1,0 +1,7 @@
+# Real, personal Amazon order/charge data and transaction-review output -- never commit these.
+.cache/
+needs_review.csv
+
+.venv/
+__pycache__/
+*.pyc
