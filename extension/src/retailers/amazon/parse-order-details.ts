@@ -1,4 +1,5 @@
 import { parseCurrency } from "./parse-currency";
+import { parseOrderNumber as extractOrderNumber } from "./parse-order-number";
 import * as sel from "./selectors";
 
 export interface ParsedItem {
@@ -61,8 +62,8 @@ function parseOrderNumber(doc: Document): string | null {
 	for (const selector of sel.FIELD_ORDER_NUMBER_SELECTOR) {
 		const el = doc.querySelector(selector);
 		if (!el) continue;
-		const match = text(el).match(/\b[A-Z0-9]{3}-\d{7}-\d{7}\b/);
-		if (match) return match[0];
+		const orderNumber = extractOrderNumber(text(el));
+		if (orderNumber) return orderNumber;
 	}
 	return null;
 }
