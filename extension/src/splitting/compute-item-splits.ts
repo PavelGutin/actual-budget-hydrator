@@ -190,3 +190,64 @@ export function computeItemSplits(order: SplittableOrder, transactionAmountCents
 			"matches either; needs manual review",
 	);
 }
+
+/** The order page's cumulative refund breakdown, in cents (see parseRefundBreakdown). */
+export interface RefundBreakdownCents {
+	totalCents: number;
+	itemRefundCents: number;
+	otherCents: Record<string, number>;
+}
+
+/**
+ * Port of the Python CLI's compute_item_splits_from_breakdown: for a partial refund whose
+ * proportional split didn't reconcile, use the order page's own refund breakdown (ground truth)
+ * to find which items were refunded, then spread its other parts (tax, etc.) across just those.
+ *
+ * Only correct when the order has had exactly one refund event -- the breakdown is cumulative
+ * across all of an order's refunds. Callers check that.
+ */
+export function computeItemSplitsFromBreakdown(
+	order: SplittableOrder,
+	breakdown: RefundBreakdownCents,
+	transactionAmountCents: number,
+): ItemSplit[] {
+	const items = order.items.filter((item) => item.price !== null);
+	if (items.length === 0) {
+		throw new ReconciliationError(`Order ${order.orderNumber} has no priced items`);
+	}
+
+	const baseCents = items.map((item) => toCents(item.price) * (item.quantity ?? 1));
+	const itemSplits = items.map((item, i) => ({ title: item.title, amountCents: baseCents[i] }));
+
+	let subset = findItemSubset(itemSplits, breakdown.itemRefundCents, RECONCILIATION_TOLERANCE_CENTS);
+	if (subset === null && breakdown.itemRefundCents === baseCents.reduce((a, b) => a + b, 0)) {
+		subset = itemSplits;
+	}
+	if (subset === null) {
+		throw new ReconciliationError(
+			`Order ${order.orderNumber}: refund breakdown's item total ${(breakdown.itemRefundCents / 100).toFixed(2)} ` +
+				"doesn't match any subset of item prices; needs manual review",
+		);
+	}
+
+	const weights = subset.map((s) => s.amountCents);
+	const otherTotal = Object.values(breakdown.otherCents).reduce((a, b) => a + b, 0);
+	const otherShares = allocateProportional(weights, otherTotal);
+
+	const sign = transactionAmountCents < 0 ? -1 : 1;
+	const finalCents = weights.map((w, i) => sign * (w + otherShares[i]));
+
+	const diff = transactionAmountCents - finalCents.reduce((a, b) => a + b, 0);
+	if (Math.abs(diff) > RECONCILIATION_TOLERANCE_CENTS) {
+		throw new ReconciliationError(
+			`Order ${order.orderNumber}: refund breakdown total ${(breakdown.totalCents / 100).toFixed(2)} ` +
+				`doesn't match matched transaction ${(transactionAmountCents / 100).toFixed(2)}; needs manual review`,
+		);
+	}
+	if (diff !== 0) {
+		const largest = finalCents.reduce((best, c, i) => (Math.abs(c) > Math.abs(finalCents[best]) ? i : best), 0);
+		finalCents[largest] += diff;
+	}
+
+	return subset.map((s, i) => ({ title: s.title, amountCents: finalCents[i] }));
+}

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
-import { parseTransactionsNextData } from "../src/retailers/amazon/parse-transactions";
+import { parseTransactionsDataResponse, parseTransactionsNextData } from "../src/retailers/amazon/parse-transactions";
 
 /** Ground truth from amazon-orders' tests/unit/test_transactions.py::test_parse_transactions_embedded_data. */
 describe("parseTransactionsNextData (amazon-orders fixture port)", () => {
@@ -42,5 +42,31 @@ describe("parseTransactionsNextData (amazon-orders fixture port)", () => {
 			locale: "en_US",
 			widgetName: "ViewTransactions",
 		});
+	});
+});
+
+/** Ground truth from amazon-orders' tests/unit/test_transactions.py::test_get_transactions_embedded_data_next_page / _last_page. */
+describe("parseTransactionsDataResponse (paginated get-transactions POST)", () => {
+	const body = JSON.parse(
+		readFileSync(new URL("./fixtures/amazon-orders/transactions-nextjs-next-page.json", import.meta.url), "utf-8"),
+	);
+
+	it("parses a following page and its cursor", () => {
+		const { transactions, lastEvaluatedKey } = parseTransactionsDataResponse(body);
+		expect(transactions).toHaveLength(20);
+		expect(transactions[0].completedDate).toBe("2026-02-14");
+		expect(lastEvaluatedKey).toBe("REDACTED");
+	});
+
+	it("returns a null cursor on the last page", () => {
+		const last = structuredClone(body);
+		delete last.displayResponse.lastEvaluatedKey;
+		const { transactions, lastEvaluatedKey } = parseTransactionsDataResponse(last);
+		expect(transactions).toHaveLength(20);
+		expect(lastEvaluatedKey).toBeNull();
+	});
+
+	it("throws on an unrecognized response shape", () => {
+		expect(() => parseTransactionsDataResponse({ displayResponse: {} })).toThrow();
 	});
 });

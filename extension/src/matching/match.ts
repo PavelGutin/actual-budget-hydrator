@@ -78,7 +78,11 @@ export function matchTransactions<T extends MatchableTransaction>(
 	transactions: T[],
 	charges: Charge[],
 ): MatchResult<T>[] {
-	const used = new Set<number>();
+	// Gift-card and pending charges are never candidates. Pre-marking them as used keeps
+	// every pool filter below unchanged.
+	const used = new Set<number>(
+		charges.flatMap((c, i) => (c.isGiftCard || c.isPending ? [i] : [])),
+	);
 	const chargesByOrder = new Map<string | null, number[]>();
 	charges.forEach((c, i) => {
 		const bucket = chargesByOrder.get(c.orderNumber) ?? [];

@@ -1,0 +1,88 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Actual (fake)</title></head>
+<body><h1>Fake Actual</h1>
+<script>
+(() => {
+	const db = {
+		prefs: { id: "budget-test-1", budgetName: "Household 2026" },
+		accounts: [
+			{ id: "acct-amzn", name: "Chase Amazon Visa", offbudget: 0, closed: 0 },
+			{ id: "acct-chk", name: "Checking", offbudget: 0, closed: 0 },
+			{ id: "acct-old", name: "Old Card", offbudget: 0, closed: 1 },
+		],
+		payees: { "p-amazon": "Amazon", "p-amzn": "AMZN Mktp US", "p-amzncom": "Amazon.com", "p-mktpl": "AMAZON MKTPL", "p-groc": "Grocery Store" },
+		transactions: [],
+		calls: [],
+	};
+	const t = (id, account, date, amount, payee, extra = {}) => ({
+		id, account, date, amount, payee, notes: null, category: null, is_parent: 0, is_child: 0,
+		parent_id: null, transfer_id: null, cleared: 1, reconciled: 0, ...extra,
+	});
+	db.transactions.push(
+		t("t1", "acct-amzn", "2026-10-20", -6088, "p-amazon"),
+		t("t2", "acct-chk", "2026-10-18", -4661, "p-amzn", { cleared: 0 }),
+		t("t3", "acct-amzn", "2026-10-15", -2880, null),
+		t("t4", "acct-chk", "2026-10-12", -5478, "p-amzncom", { category: "cat-clothes" }),
+		t("t5", "acct-chk", "2026-10-09", -2850, "p-mktpl"),
+		t("t6", "acct-amzn", "2026-10-07", -4446, "p-amazon"),
+		t("t7", "acct-chk", "2026-10-10", -1234, "p-amazon"),
+		t("t8", "acct-chk", "2026-10-11", -5000, "p-groc", { category: "cat-food" }),
+	);
+	// t4 has a category, so the default "uncategorized" filter leaves it out.
+
+	class Q {
+		constructor(table) { this.table = table; this.f = null; this.o = {}; this.s = "*"; }
+		filter(f) { const q = Object.assign(new Q(this.table), this); q.f = { ...(this.f || {}), ...f }; return q; }
+		options(o) { const q = Object.assign(new Q(this.table), this); q.o = o; return q; }
+		select(s) { const q = Object.assign(new Q(this.table), this); q.s = s; return q; }
+	}
+	const matches = (row, f) => Object.entries(f || {}).every(([k, v]) => {
+		if (v && typeof v === "object") {
+			if ("$gte" in v) return row[k] >= v.$gte;
+			if ("$eq" in v) return row[k] === v.$eq;
+			throw new Error("unsupported filter op " + JSON.stringify(v));
+		}
+		return row[k] === v;
+	});
+	const pick = (row, sel) => {
+		if (sel === "*") return { ...row };
+		const out = {};
+		for (const s of [].concat(sel)) {
+			if (typeof s === "string") out[s] = row[s];
+			else for (const [alias, path] of Object.entries(s)) {
+				if (path === "payee.name") out[alias] = row.payee ? db.payees[row.payee] ?? null : null;
+				else throw new Error("unsupported select path " + path);
+			}
+		}
+		return out;
+	};
+	window.$q = (table) => new Q(table);
+	window.$query = async (q) => {
+		db.calls.push({ kind: "query", table: q.table, filter: q.f, options: q.o });
+		let rows;
+		if (q.table === "transactions") {
+			rows = db.transactions.filter((r) => !r.tombstone);
+			if (q.o?.splits === "none") rows = rows.filter((r) => !r.is_child);
+		} else if (q.table === "accounts") rows = db.accounts;
+		else throw new Error("unknown table " + q.table);
+		return { data: rows.filter((r) => matches(r, q.f)).map((r) => pick(r, q.s)) };
+	};
+	window.$send = async (method, args) => {
+		db.calls.push({ kind: "send", method, args });
+		if (method === "load-prefs") return db.prefs;
+		if (method === "transactions-batch-update") {
+			for (const a of args.added || []) db.transactions.push({ transfer_id: null, ...a, is_child: a.is_child ? 1 : 0, is_parent: 0 });
+			for (const u of args.updated || []) {
+				const row = db.transactions.find((r) => r.id === u.id);
+				if (!row) throw new Error("update of missing " + u.id);
+				Object.assign(row, u, "is_parent" in u ? { is_parent: u.is_parent ? 1 : 0 } : {});
+			}
+			for (const d of args.deleted || []) db.transactions = db.transactions.filter((r) => r.id !== d.id);
+			return { updated: args.updated?.length ?? 0 };
+		}
+		throw new Error("unexpected $send " + method);
+	};
+	window.__fake = db;
+})();
+</script>
+</body></html>

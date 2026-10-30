@@ -11,7 +11,7 @@ describe("parseOrderDetails (coupon savings row)", () => {
 			"utf-8",
 		);
 		const doc = new JSDOM(html).window.document;
-		const order = parseOrderDetails(doc);
+		const order = parseOrderDetails(doc)!;
 
 		expect(order.couponSavings).toBe(-3.89);
 	});

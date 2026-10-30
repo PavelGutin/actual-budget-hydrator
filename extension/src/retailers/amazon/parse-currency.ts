@@ -1,25 +1,23 @@
 /**
- * Simplified port of amazon-orders' Constants.parse_currency, scoped to US-formatted amounts
- * ("$1,234.56", "(1.99)"). Full locale handling (amazon.de/.co.jp etc.) is out of scope for the spike.
+ * Port of amazon-orders' Constants.parse_currency + util.strip_currency_text / to_decimal_point:
+ * "$1,234.56", "-$2.99", "+$18.01", "($1.99)", "CDN$ 5", "12,99 €", and "FREE" (0).
  */
+const CURRENCY_FREE_TEXT = "free";
+
 export function parseCurrency(value: string | null | undefined): number | null {
 	if (!value) return null;
+	let v = value.trim();
+	if (!v) return null;
+	if (v.toLowerCase() === CURRENCY_FREE_TEXT) return 0;
 
-	let trimmed = value.trim();
-	if (!trimmed) return null;
+	if (v.startsWith("(") && v.endsWith(")")) v = `-${v.slice(1, -1)}`;
 
-	let negative = false;
-	if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
-		negative = true;
-		trimmed = trimmed.slice(1, -1);
-	}
+	v = v.replace(/−/g, "-").replace(/[\p{L}\p{Sc}\s]/gu, "");
 
-	const cleaned = trimmed.replace(/−/g, "-").replace(/[^0-9.,-]/g, "");
-	if (!cleaned) return null;
+	const decimalMark = v.match(/[.,](\d{1,2})$/);
+	const whole = (decimalMark ? v.slice(0, decimalMark.index) : v).replace(/[.,']/g, "");
+	const normalized = decimalMark ? `${whole}.${decimalMark[1]}` : whole;
 
-	const numeric = cleaned.replace(/,/g, "");
-	const parsed = Number.parseFloat(numeric);
-	if (Number.isNaN(parsed)) return null;
-
-	return negative ? -Math.abs(parsed) : parsed;
+	if (!/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(normalized)) return null;
+	return Number.parseFloat(normalized);
 }

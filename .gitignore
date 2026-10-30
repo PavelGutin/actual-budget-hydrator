@@ -2,3 +2,9 @@ node_modules/
 .output/
 .wxt/
 *.log
+
+# Live Amazon page captures -- real personal order data, never commit
+extension/tests/fixtures/live/
+
+# end-to-end test screenshots
+extension/e2e/.shots/

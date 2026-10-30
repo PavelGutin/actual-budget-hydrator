@@ -17,6 +17,11 @@ export interface ParsedTransaction {
 	orderNumber: string | null;
 	orderDetailsLink: string | null;
 	seller: string | null;
+	/** Amazon's statusInfo.status, e.g. "Pending" or "Approved". Pending amounts can still change. */
+	status: string | null;
+	isPending: boolean;
+	/** Portion paid from Amazon gift card balance -- never appears on a bank/card statement. */
+	isGiftCard: boolean;
 }
 
 interface RawTransaction {
@@ -28,6 +33,7 @@ interface RawTransaction {
 		paymentMethodNumber?: { lastDigits?: string };
 	};
 	statementDescriptor?: string;
+	statusInfo?: { status?: string; label?: string; amountDetailsStatusType?: string };
 }
 
 export interface NextPageCursor {
@@ -56,6 +62,7 @@ function parseOneTransaction(raw: RawTransaction): ParsedTransaction | null {
 
 	const orderNumber = parseOrderNumber(orderData.orderDisplayString);
 	const seller = raw.statementDescriptor ?? null;
+	const status = raw.statusInfo?.status ?? null;
 
 	return {
 		completedDate,
@@ -66,7 +73,34 @@ function parseOneTransaction(raw: RawTransaction): ParsedTransaction | null {
 		orderNumber,
 		orderDetailsLink: orderData.orderDetailsUrl ?? null,
 		seller: seller === orderNumber ? null : seller,
+		status,
+		isPending: status?.toLowerCase() === "pending",
+		isGiftCard: /gift card/i.test(paymentMethodName ?? ""),
 	};
+}
+
+export interface ParsedTransactionsDataPage {
+	transactions: ParsedTransaction[];
+	/** Cursor for the following page; null on the last page. */
+	lastEvaluatedKey: string | null;
+}
+
+/**
+ * Parses the JSON body of the paginated POST the transactions page makes on scroll
+ * (/payments-portal/data/iris/live/v1/data/manage/get-transactions). Port of amazon-orders'
+ * TransactionsPage._get_data_page response handling. Note the plural `transactionsList` here vs
+ * `transactionList` in the page's embedded __NEXT_DATA__.
+ */
+export function parseTransactionsDataResponse(body: unknown): ParsedTransactionsDataPage {
+	const display = (body as { displayResponse?: { transactionsList?: RawTransaction[]; lastEvaluatedKey?: string } })
+		?.displayResponse;
+	const rawList = display?.transactionsList;
+	if (!Array.isArray(rawList)) {
+		throw new Error("Could not find displayResponse.transactionsList -- check if Amazon changed the response shape.");
+	}
+	const transactions = rawList.map(parseOneTransaction).filter((t): t is ParsedTransaction => t !== null);
+	const lastEvaluatedKey = display?.lastEvaluatedKey;
+	return { transactions, lastEvaluatedKey: lastEvaluatedKey && transactions.length > 0 ? lastEvaluatedKey : null };
 }
 
 /** Parses a Transactions page already identified as the Next.js/embedded-JSON variant. */

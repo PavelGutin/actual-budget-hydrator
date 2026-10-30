@@ -1,0 +1,66 @@
+name: Release
+
+# Push a tag matching extension/package.json's version, e.g.:
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    env:
+      # Optional. With these repository secrets set, the Firefox build is signed by Mozilla as an
+      # unlisted add-on (not published on addons.mozilla.org) so it installs permanently in Firefox.
+      # Get them at https://addons.mozilla.org/developers/addon/api/key/
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Check the tag matches package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match extension/package.json version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - run: npm ci
+      - run: npm test
+      - run: npx wxt zip -b firefox
+      - run: npx wxt zip -b chrome
+
+      - name: Sign the Firefox build (unlisted)
+        if: env.AMO_JWT_ISSUER != ''
+        run: |
+          npx --yes web-ext@8 sign \
+            --channel unlisted \
+            --source-dir .output/firefox-mv2 \
+            --upload-source-code .output/*-sources.zip \
+            --artifacts-dir .output/signed \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET"
+          mv .output/signed/*.xpi ".output/actual-budget-hydrator-$VERSION-firefox.xpi"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            .output/*-firefox.zip .output/*-chrome.zip .output/*.xpi

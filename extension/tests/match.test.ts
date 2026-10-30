@@ -102,4 +102,34 @@ describe("matchTransactions", () => {
 		expect(r1.charge).toBe(onlyCharge);
 		expect(r2.charge).toBeNull();
 	});
+
+	it("never matches a gift-card charge, even on exact amount and date", () => {
+		const [result] = matchTransactions(
+			[txn({ amount: -48 })],
+			[charge({ grandTotal: -48, paymentMethodLast4: null, isGiftCard: true })],
+		);
+		expect(result.charge).toBeNull();
+		expect(result.ambiguousCandidates).toHaveLength(0);
+	});
+
+	it("never matches a gift-card charge via an order number in notes", () => {
+		const [result] = matchTransactions(
+			[txn({ amount: -48, notes: "Item | (111-1234567-1234567)" })],
+			[charge({ grandTotal: -48, isGiftCard: true })],
+		);
+		expect(result.charge).toBeNull();
+	});
+
+	it("skips a pending charge, and a gift-card sibling doesn't make the card charge ambiguous", () => {
+		const results = matchTransactions(
+			[txn({ id: "a", amount: -49.99 }), txn({ id: "b", amount: -12.19 })],
+			[
+				charge({ grandTotal: -49.99, isPending: true }),
+				charge({ grandTotal: -12.19 }),
+				charge({ grandTotal: -48, paymentMethodLast4: null, isGiftCard: true }),
+			],
+		);
+		expect(results[0].charge).toBeNull();
+		expect(results[1].charge?.grandTotal).toBe(-12.19);
+	});
 });

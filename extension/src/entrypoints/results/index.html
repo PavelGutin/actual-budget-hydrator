@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Actual Budget Hydrator</title>
+		<link rel="stylesheet" href="./style.css" />
+	</head>
+	<body>
+		<header class="top">
+			<h1>Itemize Amazon charges</h1>
+			<button id="history-toggle" class="link" type="button">History</button>
+		</header>
+
+		<nav class="steps" aria-label="Steps">
+			<ol>
+				<li><button type="button" data-step="1"><span class="n">1</span>Connect Actual</button></li>
+				<li><button type="button" data-step="2"><span class="n">2</span>Choose transactions</button></li>
+				<li><button type="button" data-step="3"><span class="n">3</span>Scan Amazon</button></li>
+				<li><button type="button" data-step="4"><span class="n">4</span>Review and apply</button></li>
+			</ol>
+		</nav>
+
+		<main>
+			<p id="connection-banner" class="banner" role="alert" hidden></p>
+			<section id="step-1" class="step" aria-labelledby="s1-title">
+				<h2 id="s1-title">Connect to your budget</h2>
+				<p class="lede">Connect to the budget open in your Actual tab. Nothing in Actual changes until the last step.</p>
+
+				<div class="field-row">
+					<label for="actual-url">Actual address</label>
+					<div class="inline">
+						<input id="actual-url" type="url" size="34" autocomplete="off" />
+						<button id="actual-connect" type="button">Connect</button>
+					</div>
+				</div>
+				<p id="actual-status" class="status" role="status"></p>
+				<p id="connected-budget" class="connected" hidden></p>
+
+				<footer class="step-foot">
+					<button id="to-step-2" class="primary" type="button" disabled>Continue</button>
+				</footer>
+			</section>
+
+			<section id="step-2" class="step" aria-labelledby="s2-title" hidden>
+				<h2 id="s2-title">Choose what to itemize</h2>
+				<p class="lede">Pick the accounts to look at and which of their transactions to consider.</p>
+
+				<table class="accounts">
+					<thead>
+						<tr>
+							<th scope="col">Account</th>
+							<th scope="col">Include</th>
+							<th scope="col">Every transaction is Amazon</th>
+						</tr>
+					</thead>
+					<tbody id="accounts-body"></tbody>
+				</table>
+
+				<div class="grid-fields">
+					<label for="state-filter">Consider</label>
+					<select id="state-filter">
+						<option value="uncategorized">Uncategorized transactions</option>
+						<option value="uncleared">Uncleared transactions</option>
+						<option value="uncategorized-or-uncleared">Uncategorized or uncleared</option>
+						<option value="all">Everything not yet itemized</option>
+					</select>
+					<label for="lookback">Look back to</label>
+					<input id="lookback" type="date" />
+					<label for="payee-subs">Payee contains</label>
+					<input id="payee-subs" size="18" />
+				</div>
+
+				<footer class="step-foot">
+					<button id="back-to-1" type="button">Back</button>
+					<p id="candidate-summary" class="summary"></p>
+					<button id="to-step-3" class="primary" type="button" disabled>Continue</button>
+				</footer>
+			</section>
+
+			<section id="step-3" class="step" aria-labelledby="s3-title" hidden>
+				<h2 id="s3-title">Read your Amazon orders</h2>
+				<p class="lede">
+					Reads Amazon transactions back to the date below, then each order's details, one request every few seconds
+					from your open amazon.com tab. Orders read before are reused unless they changed.
+				</p>
+
+				<div class="field-row">
+					<label for="since">Read back to</label>
+					<div class="inline">
+						<input id="since" type="date" />
+						<span id="since-note" class="muted"></span>
+					</div>
+				</div>
+				<p id="amazon-status" class="status" role="status"></p>
+				<p id="last-scan" class="notice" hidden></p>
+
+				<div class="actions">
+					<button id="grant-amazon" type="button" hidden>Allow access to amazon.com</button>
+					<button id="scan" class="primary" type="button">Scan Amazon</button>
+					<button id="use-last" type="button" hidden>Use last scan</button>
+				</div>
+
+				<div id="progress" class="progress" hidden>
+					<p id="progress-line" class="progress-line"></p>
+					<div class="bar" aria-hidden="true"><div id="progress-fill"></div></div>
+				</div>
+
+				<div id="scan-result" hidden>
+					<p id="scan-summary" class="summary"></p>
+					<ul id="scan-warnings" class="warnings"></ul>
+					<details class="more">
+						<summary>Scan details</summary>
+						<div id="scan-details"></div>
+						<div class="actions">
+							<button id="download" type="button">Download report</button>
+						</div>
+					</details>
+				</div>
+
+				<details class="more">
+					<summary>Scan settings</summary>
+					<div class="grid-fields">
+						<label for="max-details">Order pages per scan, at most</label>
+						<input id="max-details" type="number" min="1" max="1000" value="300" />
+						<label for="refresh">Re-read every order</label>
+						<input id="refresh" type="checkbox" />
+					</div>
+					<div class="actions">
+						<button id="clear-cache" type="button">Forget saved orders</button>
+						<span id="cache-count" class="muted"></span>
+					</div>
+					<details class="more">
+						<summary>Request log</summary>
+						<pre id="log"></pre>
+					</details>
+				</details>
+
+				<footer class="step-foot">
+					<button id="back-to-2" type="button">Back</button>
+					<button id="to-step-4" class="primary" type="button" disabled>Review splits</button>
+				</footer>
+			</section>
+
+			<section id="step-4" class="step" aria-labelledby="s4-title" hidden>
+				<h2 id="s4-title">Review the splits</h2>
+				<p class="lede">
+					Each ticked transaction becomes a split: the order link on the transaction, one line per item. You can undo any
+					of them from History.
+				</p>
+				<div class="filters" role="tablist" aria-label="Show">
+					<button type="button" role="tab" data-filter="ready" aria-selected="true">Ready <span></span></button>
+					<button type="button" role="tab" data-filter="attention">Needs you <span></span></button>
+					<button type="button" role="tab" data-filter="skipped">Left alone <span></span></button>
+				</div>
+				<p id="review-status" class="status" role="status"></p>
+				<div id="review-list" class="review"></div>
+
+				<footer class="step-foot sticky">
+					<button id="back-to-3" type="button">Back</button>
+					<label class="select-all"><input id="select-all" type="checkbox" checked /> Select all ready</label>
+					<button id="apply" class="primary" type="button" disabled>Apply</button>
+				</footer>
+			</section>
+
+			<section id="history" class="step" aria-labelledby="h-title" hidden>
+				<h2 id="h-title">History</h2>
+				<p class="lede">Splits applied from here. Reverting removes the item lines and restores the transaction's notes and category.</p>
+				<p id="history-status" class="status" role="status"></p>
+				<div id="history-list"></div>
+				<footer class="step-foot">
+					<button id="history-close" type="button">Back</button>
+				</footer>
+			</section>
+		</main>
+		<script type="module" src="./main.ts"></script>
+	</body>
+</html>

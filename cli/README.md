@@ -31,7 +31,7 @@ First, duplicate your Actual budget in the Actual UI (File menu -> Duplicate
 Budget) and run against that copy first:
 
 ```
-set ACTUAL_SERVER_URL=http://192.168.1.168:5006
+set ACTUAL_SERVER_URL=http://localhost:5006
 set ACTUAL_PASSWORD=your-actual-password
 set ACTUAL_BUDGET=My Budget (copy)
 python -m amazon_actual_sync.cli --year 2026 --dry-run

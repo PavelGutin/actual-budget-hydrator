@@ -1,15 +1,28 @@
 {
   "name": "actual-budget-hydrator",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "vitest run"
+    "dev": "wxt -b firefox",
+    "dev:chrome": "wxt -b chrome",
+    "build": "wxt build -b firefox",
+    "build:chrome": "wxt build -b chrome",
+    "zip": "wxt zip -b firefox",
+    "zip:chrome": "wxt zip -b chrome",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "postinstall": "wxt prepare",
+    "e2e": "node e2e/run.cjs && node e2e/run.cjs --inject"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
     "jsdom": "^25.0.1",
+    "playwright": "^1.64.1",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
-  }
+    "vitest": "^2.1.8",
+    "wxt": "^0.20.0"
+  },
+  "description": "Itemizes Amazon charges in Actual Budget, using your own signed-in browser.",
+  "license": "MIT"
 }

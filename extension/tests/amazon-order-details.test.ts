@@ -15,7 +15,7 @@ describe("parseOrderDetails (amazon-orders fixture port)", () => {
 		"utf-8",
 	);
 	const doc = new JSDOM(html).window.document;
-	const order = parseOrderDetails(doc);
+	const order = parseOrderDetails(doc)!;
 
 	it("parses the order number", () => {
 		expect(order.orderNumber).toBe("112-9685975-5907428");

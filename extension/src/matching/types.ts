@@ -4,6 +4,10 @@ export interface Charge {
 	orderNumber: string | null;
 	paymentMethodLast4: string | null;
 	isRefund: boolean;
+	/** Paid from Amazon gift card balance: never hits a bank account, so never matched. */
+	isGiftCard?: boolean;
+	/** Not yet settled; the final amount can differ. Skipped until a later run sees it settled. */
+	isPending?: boolean;
 }
 
 /** The subset of an Actual transaction's fields matching actually needs. */

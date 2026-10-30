@@ -1,5 +1,10 @@
 # Handoff: moving to live Amazon work (Claude Desktop + computer use)
 
+> **Status 2026-10-23 (end of day):** the Amazon side of the extension is built and verified against the
+> live account -- see the README's "Trying the extension". Selectors/parsing were re-synced with
+> upstream amazon-orders (golden parity tests), transactions paginate to a since-date, order details
+> are cached. Next: matching + writing to Actual. The notes below are the original morning handoff.
+
 Written 2026-10-23 at the end of a Claude Code CLI session, to hand off to a Claude Desktop
 session that will use computer-use to drive Firefox against the user's real, logged-in Amazon
 session.
